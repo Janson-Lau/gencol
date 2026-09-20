@@ -26,22 +26,6 @@ Require Go 1\.18\+
 go install github.com/Janson-Lau/gencol@latest
 ```
 
-## Uninstall
-
-Go has no official uninstall command, just manually remove the binary file:
-
-```bash
-# Query GOPATH bin directory path
-go env GOPATH
-
-# Uninstall (Windows)
-rm $GOPATH/bin/gencol.exe
-
-# Uninstall (Linux / Mac)
-rm $GOPATH/bin/gencol
-
-```
-
 ## Usage
 
 ### 1\. Interactive Mode \(Recommend\)
@@ -198,6 +182,22 @@ func (p *UserModel) GetByUsername(username string) (*User, error) {
 - **Compile\-time safety**: Wrong column names will report errors during compilation, not online runtime errors
 
 - **Non\-intrusive**: Does not modify any original model and business code
+
+## Uninstall
+
+Go has no official uninstall command, just manually remove the binary file:
+
+```bash
+# Query GOPATH bin directory path
+go env GOPATH
+
+# Uninstall (Windows)
+rm $GOPATH/bin/gencol.exe
+
+# Uninstall (Linux / Mac)
+rm $GOPATH/bin/gencol
+
+```
 
 ## License
 
