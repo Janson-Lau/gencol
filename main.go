@@ -29,30 +29,63 @@ type structMeta struct {
 	Fields     []fieldMeta
 }
 
-// lowerFirst 首字母小写，其余字符保持不变 RoleModel → roleModel
-func lowerFirst(s string) string {
-	if s == "" {
-		return s
+// 本地安装: go install .
+// 获取 tag: git tag
+// 加 tag: git tag v1.0.0
+// 推送 tag: git push --tags
+func main() {
+	verFlag := flag.Bool("v", false, "show version")
+	flag.Parse()
+	if *verFlag {
+		fmt.Printf("gencol version %s\n", version)
+		return
 	}
-	r := []rune(s)
-	r[0] = unicode.ToLower(r[0])
-	return string(r)
-}
 
-// camelToSnake 大驼峰转下划线小写 RoleModel → role_model
-func camelToSnake(s string) string {
-	var buf strings.Builder
-	for i, r := range s {
-		if unicode.IsUpper(r) {
-			if i > 0 {
-				buf.WriteRune('_')
-			}
-			buf.WriteRune(unicode.ToLower(r))
-		} else {
-			buf.WriteRune(r)
+	args := flag.Args()
+	var srcDir, outDir string
+
+	// 不带参数：交互式问答模式
+	if len(args) == 0 {
+		srcDir = readPrompt("Enter model source directory", "./internal/models")
+		outDir = readPrompt("Enter output directory for generated files", "./internal/meta")
+		fmt.Printf("\nSource dir: %s\nOutput dir: %s\nStart generating...\n\n", srcDir, outDir)
+	} else if len(args) == 2 {
+		// 两个参数，直接执行（go generate用）
+		srcDir = args[0]
+		outDir = args[1]
+	} else {
+		fmt.Println("Usage:")
+		fmt.Println("  gencol                     # Interactive prompt mode")
+		fmt.Println("  gencol <modelDir> <outDir> # Silent mode with directories")
+		fmt.Println("  gencol -v                  # Show version")
+		fmt.Println("Example: gencol ./internal/models ./internal/meta")
+		os.Exit(1)
+	}
+
+	files, err := scanDir(srcDir)
+	if err != nil {
+		fmt.Printf("scan dir error: %v\n", err)
+		os.Exit(1)
+	}
+
+	for _, file := range files {
+		structList, err := parseFile(file)
+		if err != nil {
+			fmt.Printf("⚠️ parse %s failed: %v\n", file, err)
+			continue
+		}
+		if len(structList) == 0 {
+			continue
+		}
+		base := filepath.Base(file)
+		modelName := strings.TrimSuffix(base, filepath.Ext(base))
+		err = genFile(modelName, outDir, structList)
+		if err != nil {
+			fmt.Printf("generate %s error: %v\n", modelName, err)
+			os.Exit(1)
 		}
 	}
-	return buf.String()
+	fmt.Println("\n🎉 all generate done")
 }
 
 // parseFile 解析单个go文件，提取里面所有struct
@@ -133,23 +166,15 @@ func genFile(srcBaseName string, outDir string, structs []structMeta) error {
 	fmt.Fprintf(w, "package meta\n\n")
 
 	for _, st := range structs {
-		lowerStruct := lowerFirst(st.StructName) // ✅ 改用首字母小写，其余字符保持不变
-		// tableName := camelToSnake(st.StructName) // ✅ 大驼峰转下划线小写
-		fmt.Fprintf(w, "// %s 表数据库字段集合\n", st.StructName)
-		fmt.Fprintf(w, "type %s struct {\n", lowerStruct)
-		// fmt.Fprintf(w, "\tTableName string\n")
+		fmt.Fprintf(w, "var %s = struct {\n", st.StructName)
 		for _, fd := range st.Fields {
 			fmt.Fprintf(w, "\t%s string\n", fd.FieldName)
 		}
-		fmt.Fprintf(w, "}\n\n")
-
-		fmt.Fprintf(w, "// %s 表字段常量实例\n", st.StructName)
-		fmt.Fprintf(w, "var %s = %s{\n", st.StructName, lowerStruct)
-		// fmt.Fprintf(w, "\tTableName: %q,\n", tableName) // ✅ 表名
+		fmt.Fprintf(w, "}{\n")
 		for _, fd := range st.Fields {
 			fmt.Fprintf(w, "\t%s: %q,\n", fd.FieldName, fd.ColName) // ✅ 去掉外层引号
 		}
-		fmt.Fprintf(w, "}\n\n")
+		fmt.Fprintf(w, "}")
 	}
 
 	fmt.Printf("✅ generated: %s\n", outPath)
@@ -194,63 +219,30 @@ func readPrompt(prompt string, def string) string {
 	return input
 }
 
-// 本地安装: go install .
-// 获取 tag: git tag
-// 加 tag: git tag v1.0.0
-// 推送 tag: git push --tags
-func main() {
-	verFlag := flag.Bool("v", false, "show version")
-	flag.Parse()
-	if *verFlag {
-		fmt.Printf("gencol version %s\n", version)
-		return
+// lowerFirst 首字母小写，其余字符保持不变 RoleModel → roleModel
+func lowerFirst(s string) string {
+	if s == "" {
+		return s
 	}
+	r := []rune(s)
+	r[0] = unicode.ToLower(r[0])
+	return string(r)
+}
 
-	args := flag.Args()
-	var srcDir, outDir string
-
-	// 不带参数：交互式问答模式
-	if len(args) == 0 {
-		srcDir = readPrompt("Enter model source directory", "./internal/models")
-		outDir = readPrompt("Enter output directory for generated files", "./internal/meta")
-		fmt.Printf("\nSource dir: %s\nOutput dir: %s\nStart generating...\n\n", srcDir, outDir)
-	} else if len(args) == 2 {
-		// 两个参数，直接执行（go generate用）
-		srcDir = args[0]
-		outDir = args[1]
-	} else {
-		fmt.Println("Usage:")
-		fmt.Println("  gencol                     # Interactive prompt mode")
-		fmt.Println("  gencol <modelDir> <outDir> # Silent mode with directories")
-		fmt.Println("  gencol -v                  # Show version")
-		fmt.Println("Example: gencol ./internal/models ./internal/meta")
-		os.Exit(1)
-	}
-
-	files, err := scanDir(srcDir)
-	if err != nil {
-		fmt.Printf("scan dir error: %v\n", err)
-		os.Exit(1)
-	}
-
-	for _, file := range files {
-		structList, err := parseFile(file)
-		if err != nil {
-			fmt.Printf("⚠️ parse %s failed: %v\n", file, err)
-			continue
-		}
-		if len(structList) == 0 {
-			continue
-		}
-		base := filepath.Base(file)
-		modelName := strings.TrimSuffix(base, filepath.Ext(base))
-		err = genFile(modelName, outDir, structList)
-		if err != nil {
-			fmt.Printf("generate %s error: %v\n", modelName, err)
-			os.Exit(1)
+// camelToSnake 大驼峰转下划线小写 RoleModel → role_model
+func camelToSnake(s string) string {
+	var buf strings.Builder
+	for i, r := range s {
+		if unicode.IsUpper(r) {
+			if i > 0 {
+				buf.WriteRune('_')
+			}
+			buf.WriteRune(unicode.ToLower(r))
+		} else {
+			buf.WriteRune(r)
 		}
 	}
-	fmt.Println("\n🎉 all generate done")
+	return buf.String()
 }
 
 func gencol_test() {
