@@ -124,14 +124,12 @@ Prone to spelling errors, no compile\-time detection:
 
 ```go
 type UserModel struct {
-	db    *gorm.DB
-	model *User	
+	db    *gorm.DB	
 }
 
 func NewUserModel(db *gorm.DB) *UserModel {
 	return &UserModel{		
-		db:    db,
-		model: &User{},
+		db:    db		
 	}
 }
 

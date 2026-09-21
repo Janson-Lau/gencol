@@ -203,8 +203,7 @@ func (qb *QueryBuilder[T]) Find() ([]T, error) {
 }
 
 // Count 统计总数
-func (qb *QueryBuilder[T]) Count() (int64, error) {
-	var cnt int64
-	err := qb.db.Count(&cnt).Error
-	return cnt, err
+func (qb *QueryBuilder[T]) Count(count *int64) error {
+	err := qb.db.Count(count).Error
+	return err
 }
