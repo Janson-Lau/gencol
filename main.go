@@ -14,9 +14,9 @@ import (
 	"unicode"
 )
 
-const version = "v1.0.0"
+const version = "v1.0.2"
 
-var colReg = regexp.MustCompile(`column:\s*([^;]+)`)
+var colReg = regexp.MustCompile(`column:\s*([^;"]+)`)
 
 type fieldMeta struct {
 	FieldName string
@@ -137,7 +137,7 @@ func genFile(srcBaseName string, outDir string, structs []structMeta) error {
 		// tableName := camelToSnake(st.StructName) // ✅ 大驼峰转下划线小写
 		fmt.Fprintf(w, "// %s 表数据库字段集合\n", st.StructName)
 		fmt.Fprintf(w, "type %s struct {\n", lowerStruct)
-		fmt.Fprintf(w, "\tTableName string\n")
+		// fmt.Fprintf(w, "\tTableName string\n")
 		for _, fd := range st.Fields {
 			fmt.Fprintf(w, "\t%s string\n", fd.FieldName)
 		}
@@ -194,6 +194,10 @@ func readPrompt(prompt string, def string) string {
 	return input
 }
 
+// 本地安装: go install .
+// 获取 tag: git tag
+// 加 tag: git tag v1.0.0
+// 推送 tag: git push --tags
 func main() {
 	verFlag := flag.Bool("v", false, "show version")
 	flag.Parse()
