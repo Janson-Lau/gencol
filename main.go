@@ -14,7 +14,7 @@ import (
 	"unicode"
 )
 
-const version = "v1.0.3"
+const version = "v1.0.4"
 
 var colReg = regexp.MustCompile(`column:\s*([^;"]+)`)
 
